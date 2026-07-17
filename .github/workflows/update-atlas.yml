@@ -1,0 +1,77 @@
+name: Update all-cancer treatment atlas
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_labels:
+        description: Skip openFDA/DailyMed label synchronization
+        required: false
+        default: false
+        type: boolean
+      skip_trials:
+        description: Skip ClinicalTrials.gov synchronization
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "25 3 * * 1"
+
+concurrency:
+  group: all-cancer-atlas-update
+  cancel-in-progress: false
+
+jobs:
+  build-atlas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Extract pipeline source
+        run: |
+          mkdir -p pipeline/src
+          unzip -o pipeline/all_cancer_atlas_pipeline.zip -d pipeline/src
+          echo "ATLAS_ROOT=pipeline/src/all_cancer_atlas_pipeline" >> "$GITHUB_ENV"
+
+      - name: Install pipeline
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "$ATLAS_ROOT"
+
+      - name: Initialize database
+        working-directory: ${{ env.ATLAS_ROOT }}
+        run: cancer-atlas init
+
+      - name: Synchronize and compile
+        working-directory: ${{ env.ATLAS_ROOT }}
+        env:
+          OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
+          ONCOKB_API_TOKEN: ${{ secrets.ONCOKB_API_TOKEN }}
+        run: |
+          args=()
+          if [[ "${{ inputs.skip_labels || false }}" == "true" ]]; then args+=(--skip-labels); fi
+          if [[ "${{ inputs.skip_trials || false }}" == "true" ]]; then args+=(--skip-trials); fi
+          cancer-atlas full "${args[@]}"
+
+      - name: Run tests
+        working-directory: ${{ env.ATLAS_ROOT }}
+        run: pytest -q
+
+      - name: Upload atlas artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-cancer-treatment-atlas-${{ github.run_number }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ${{ env.ATLAS_ROOT }}/exports/
+            ${{ env.ATLAS_ROOT }}/reports/
+            ${{ env.ATLAS_ROOT }}/data/atlas.duckdb
