@@ -35,10 +35,14 @@ jobs:
           python-version: "3.11"
           cache: pip
 
+      - name: Reconstruct and verify pipeline archive
+        run: bash pipeline/reconstruct.sh
+
       - name: Extract pipeline source
         run: |
+          rm -rf pipeline/src
           mkdir -p pipeline/src
-          unzip -o pipeline/all_cancer_atlas_pipeline.zip -d pipeline/src
+          unzip -q pipeline/all_cancer_atlas_pipeline.zip -d pipeline/src
           echo "ATLAS_ROOT=pipeline/src/all_cancer_atlas_pipeline" >> "$GITHUB_ENV"
 
       - name: Install pipeline
@@ -46,11 +50,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e "$ATLAS_ROOT"
 
+      - name: Run unit tests
+        working-directory: ${{ env.ATLAS_ROOT }}
+        run: pytest -q
+
       - name: Initialize database
         working-directory: ${{ env.ATLAS_ROOT }}
         run: cancer-atlas init
 
-      - name: Synchronize and compile
+      - name: Synchronize, normalize, QA and export
         working-directory: ${{ env.ATLAS_ROOT }}
         env:
           OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
@@ -61,11 +69,7 @@ jobs:
           if [[ "${{ inputs.skip_trials || false }}" == "true" ]]; then args+=(--skip-trials); fi
           cancer-atlas full "${args[@]}"
 
-      - name: Run tests
-        working-directory: ${{ env.ATLAS_ROOT }}
-        run: pytest -q
-
-      - name: Upload atlas artifacts
+      - name: Upload atlas database, exports and QA reports
         uses: actions/upload-artifact@v4
         with:
           name: all-cancer-treatment-atlas-${{ github.run_number }}
