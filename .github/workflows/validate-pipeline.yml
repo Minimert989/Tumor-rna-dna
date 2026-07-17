@@ -5,7 +5,7 @@ on:
     paths:
       - "README.md"
       - "docs/**"
-      - "pipeline/**"
+      - "atlas_pipeline/**"
       - ".github/workflows/**"
   push:
     branches:
@@ -29,28 +29,18 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Reconstruct and verify archive
-        run: bash pipeline/reconstruct.sh
-
-      - name: Extract source
-        run: |
-          rm -rf pipeline/src
-          mkdir -p pipeline/src
-          unzip -q pipeline/all_cancer_atlas_pipeline.zip -d pipeline/src
-          echo "ATLAS_ROOT=pipeline/src/all_cancer_atlas_pipeline" >> "$GITHUB_ENV"
-
       - name: Install package
         run: |
           python -m pip install --upgrade pip
-          pip install -e "$ATLAS_ROOT"
+          pip install -e 'atlas_pipeline[dev]'
 
       - name: Compile Python sources
-        run: python -m compileall -q "$ATLAS_ROOT/src"
+        run: python -m compileall -q atlas_pipeline/src
 
       - name: Run unit tests
-        working-directory: ${{ env.ATLAS_ROOT }}
+        working-directory: atlas_pipeline
         run: pytest -q
 
       - name: Initialize empty atlas database
-        working-directory: ${{ env.ATLAS_ROOT }}
+        working-directory: atlas_pipeline
         run: cancer-atlas init

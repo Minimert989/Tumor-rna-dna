@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       skip_labels:
-        description: Skip openFDA/DailyMed label synchronization
+        description: Skip openFDA and DailyMed synchronization
         required: false
         default: false
         type: boolean
@@ -34,38 +34,30 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Reconstruct and verify pipeline archive
-        run: bash pipeline/reconstruct.sh
-
-      - name: Extract pipeline source
-        run: |
-          rm -rf pipeline/src
-          mkdir -p pipeline/src
-          unzip -q pipeline/all_cancer_atlas_pipeline.zip -d pipeline/src
-          echo "ATLAS_ROOT=pipeline/src/all_cancer_atlas_pipeline" >> "$GITHUB_ENV"
-
       - name: Install pipeline
         run: |
           python -m pip install --upgrade pip
-          pip install -e "$ATLAS_ROOT"
+          pip install -e 'atlas_pipeline[dev]'
 
       - name: Run unit tests
-        working-directory: ${{ env.ATLAS_ROOT }}
+        working-directory: atlas_pipeline
         run: pytest -q
 
       - name: Initialize database
-        working-directory: ${{ env.ATLAS_ROOT }}
+        working-directory: atlas_pipeline
         run: cancer-atlas init
 
       - name: Synchronize, normalize, QA and export
-        working-directory: ${{ env.ATLAS_ROOT }}
+        working-directory: atlas_pipeline
         env:
           OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
           ONCOKB_API_TOKEN: ${{ secrets.ONCOKB_API_TOKEN }}
+          SKIP_LABELS: ${{ github.event.inputs.skip_labels }}
+          SKIP_TRIALS: ${{ github.event.inputs.skip_trials }}
         run: |
           args=()
-          if [[ "${{ inputs.skip_labels || false }}" == "true" ]]; then args+=(--skip-labels); fi
-          if [[ "${{ inputs.skip_trials || false }}" == "true" ]]; then args+=(--skip-trials); fi
+          if [[ "$SKIP_LABELS" == "true" ]]; then args+=(--skip-labels); fi
+          if [[ "$SKIP_TRIALS" == "true" ]]; then args+=(--skip-trials); fi
           cancer-atlas full "${args[@]}"
 
       - name: Upload atlas database, exports and QA reports
@@ -75,6 +67,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
           path: |
-            ${{ env.ATLAS_ROOT }}/exports/
-            ${{ env.ATLAS_ROOT }}/reports/
-            ${{ env.ATLAS_ROOT }}/data/atlas.duckdb
+            atlas_pipeline/exports/
+            atlas_pipeline/reports/
+            atlas_pipeline/data/atlas.duckdb

@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+atlas_pipeline/data/
+atlas_pipeline/exports/
+atlas_pipeline/reports/
+atlas_pipeline/src/*.egg-info/
+atlas_pipeline/src/**/*.egg-info/
