@@ -1,0 +1,72 @@
+name: Update all-cancer treatment atlas
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_labels:
+        description: Skip openFDA and DailyMed synchronization
+        required: false
+        default: false
+        type: boolean
+      skip_trials:
+        description: Skip ClinicalTrials.gov synchronization
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: "25 3 * * 1"
+
+concurrency:
+  group: all-cancer-atlas-update
+  cancel-in-progress: false
+
+jobs:
+  build-atlas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipeline
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e 'atlas_pipeline[dev]'
+
+      - name: Run unit tests
+        working-directory: atlas_pipeline
+        run: pytest -q
+
+      - name: Initialize database
+        working-directory: atlas_pipeline
+        run: cancer-atlas init
+
+      - name: Synchronize, normalize, QA and export
+        working-directory: atlas_pipeline
+        env:
+          OPENFDA_API_KEY: ${{ secrets.OPENFDA_API_KEY }}
+          ONCOKB_API_TOKEN: ${{ secrets.ONCOKB_API_TOKEN }}
+          SKIP_LABELS: ${{ github.event.inputs.skip_labels }}
+          SKIP_TRIALS: ${{ github.event.inputs.skip_trials }}
+        run: |
+          args=()
+          if [[ "$SKIP_LABELS" == "true" ]]; then args+=(--skip-labels); fi
+          if [[ "$SKIP_TRIALS" == "true" ]]; then args+=(--skip-trials); fi
+          cancer-atlas full "${args[@]}"
+
+      - name: Upload atlas database, exports and QA reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: all-cancer-treatment-atlas-${{ github.run_number }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            atlas_pipeline/exports/
+            atlas_pipeline/reports/
+            atlas_pipeline/data/atlas.duckdb

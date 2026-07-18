@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "all-cancer-atlas"
+version = "0.1.0"
+description = "Exhaustive, provenance-preserving oncology treatment atlas ETL pipeline"
+requires-python = ">=3.11"
+dependencies = [
+  "pandas>=2.2",
+  "pyarrow>=16",
+  "duckdb>=1.1",
+  "requests>=2.32",
+  "PyYAML>=6.0",
+  "typer>=0.12",
+  "rich>=13.7",
+  "tenacity>=9.0",
+  "rapidfuzz>=3.9",
+  "ijson>=3.3",
+  "openpyxl>=3.1",
+  "beautifulsoup4>=4.12",
+  "lxml>=5.2"
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "ruff>=0.5"]
+
+[project.scripts]
+cancer-atlas = "cancer_atlas.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

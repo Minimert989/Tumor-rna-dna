@@ -1,0 +1,46 @@
+name: Validate all-cancer atlas pipeline
+
+on:
+  pull_request:
+    paths:
+      - "README.md"
+      - "docs/**"
+      - "atlas_pipeline/**"
+      - ".github/workflows/**"
+  push:
+    branches:
+      - "feature/all-cancer-atlas-pipeline"
+
+concurrency:
+  group: validate-atlas-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e 'atlas_pipeline[dev]'
+
+      - name: Compile Python sources
+        run: python -m compileall -q atlas_pipeline/src
+
+      - name: Run unit tests
+        working-directory: atlas_pipeline
+        run: pytest -q
+
+      - name: Initialize empty atlas database
+        working-directory: atlas_pipeline
+        run: cancer-atlas init

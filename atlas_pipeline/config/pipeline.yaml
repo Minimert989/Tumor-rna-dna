@@ -1,0 +1,116 @@
+project:
+  name: all_cancer_treatment_atlas
+  database: data/atlas.duckdb
+  raw_dir: data/raw
+  staged_dir: data/staged
+  export_dir: exports
+  report_dir: reports
+  user_agent: "AllCancerAtlas/0.1 academic-research"
+  request_timeout_seconds: 90
+  max_retries: 5
+  concurrency: 4
+
+scope:
+  # "exhaustive" downloads complete open datasets where supported.
+  mode: exhaustive
+  include_interventional_trials_only: false
+  oncology_condition_queries:
+    - cancer
+    - carcinoma
+    - neoplasm
+    - tumor
+    - tumour
+    - leukemia
+    - lymphoma
+    - myeloma
+    - sarcoma
+    - melanoma
+    - glioma
+    - mesothelioma
+    - neuroblastoma
+    - germ cell tumor
+    - myelodysplastic
+    - myeloproliferative
+    - myelofibrosis
+    - mastocytosis
+    - histiocytosis
+    - plasmacytoma
+    - waldenstrom
+  oncology_text_regex: >-
+    (?i)\b(cancer|carcinoma|adenocarcinoma|sarcoma|melanoma|mesothelioma|glioma|glioblastoma|
+    leukemia|lymphoma|myeloma|neoplasm|malignan|tumou?r|blastoma|myelodysplastic|myeloproliferative|myelofibrosis|mastocytosis|histiocytosis|plasmacytoma)\b
+
+sources:
+  oncotree:
+    enabled: true
+    flat_url: "https://oncotree.info/api/tumorTypes"
+    tree_url: "https://oncotree.info/api/tumorTypes/tree"
+    version: "oncotree_latest_stable"
+
+  clinicaltrials:
+    enabled: true
+    base_url: "https://clinicaltrials.gov/api/v2/studies"
+    page_size: 1000
+    query_strategy: oncotree
+    max_queries: 0
+    resume: true
+
+  drugs_at_fda:
+    enabled: true
+    zip_url: "https://www.fda.gov/media/89850/download?attachment="
+
+  openfda_labels:
+    enabled: true
+    mode: bulk
+    api_url: "https://api.fda.gov/drug/label.json"
+    bulk_manifest_url: "https://api.fda.gov/download.json"
+    page_size: 1000
+
+  dailymed:
+    enabled: true
+    base_url: "https://dailymed.nlm.nih.gov/dailymed/services/v2"
+    metadata_page_size: 100
+    fetch_full_spl_for_oncology_only: true
+
+  rxnorm:
+    enabled: true
+    base_url: "https://rxnav.nlm.nih.gov/REST"
+
+  oncokb:
+    enabled: true
+    base_url: "https://www.oncokb.org/api/v1"
+    demo_url: "https://demo.oncokb.org/api/v1"
+    # The API token is read from ONCOKB_API_TOKEN.
+    # Exhaustive evidence export is license-dependent; official annotator outputs can also be imported.
+
+licensed_imports:
+  nccn:
+    enabled: true
+    path: "manual_imports/nccn_recommendations.csv"
+  eviq:
+    enabled: true
+    path: "manual_imports/eviq_regimens.csv"
+  micromedex:
+    enabled: true
+    path: "manual_imports/micromedex_monographs.csv"
+  lexidrug:
+    enabled: true
+    path: "manual_imports/lexidrug_monographs.csv"
+  oncokb_annotator:
+    enabled: true
+    path: "manual_imports/oncokb_annotations.tsv"
+
+mapping:
+  fuzzy_threshold: 92
+  retain_unmatched: true
+  manual_aliases_path: "config/cancer_aliases.csv"
+
+quality:
+  stale_days:
+    oncotree: 45
+    clinicaltrials: 14
+    drugs_at_fda: 7
+    openfda_labels: 14
+    dailymed: 14
+    oncokb: 45
+    licensed_guideline: 120

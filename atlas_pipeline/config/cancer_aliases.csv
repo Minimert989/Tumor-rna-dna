@@ -1,0 +1,10 @@
+alias,oncotree_code,note
+small cell lung cancer,SCLC,
+non-small cell lung cancer,NSCLC,
+triple negative breast cancer,TNBC,
+hepatocellular carcinoma,HCC,
+renal cell carcinoma,RCC,
+acute myeloid leukemia,AML,
+diffuse large b-cell lymphoma,DLBCL,
+multiple myeloma,MM,
+poorly differentiated neuroendocrine carcinoma,NEC,manual umbrella mapping; preserve site-specific code when possible
